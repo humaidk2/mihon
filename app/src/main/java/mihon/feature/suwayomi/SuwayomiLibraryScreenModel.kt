@@ -20,6 +20,7 @@ class SuwayomiLibraryScreenModel(
     init {
         screenModelScope.launch {
             mutableState.value = try {
+                source?.login()
                 val manga = source?.api?.getLibrary() ?: emptyList()
                 State.Success(manga)
             } catch (e: Exception) {

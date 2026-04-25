@@ -3,35 +3,40 @@ package mihon.feature.suwayomi
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
-import okhttp3.Credentials
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import tachiyomi.core.common.util.lang.withIOContext
 
-class SuwayomiSource(prefs: SuwayomiPreferences) : Source {
+class SuwayomiSource(internal val prefs: SuwayomiPreferences) : Source {
 
     override val id: Long = ID
     override val name: String = "Suwayomi"
     override val lang: String = "all"
 
-    val baseUrl: String = prefs.serverUrl.trimEnd('/')
-    val apiUrl: String = "$baseUrl/api/graphql"
+    val baseUrl: String get() = prefs.serverUrl.trimEnd('/')
+    val apiUrl: String get() = "$baseUrl/api/graphql"
+
+    private val cookieJar = object : CookieJar {
+        private val store = mutableListOf<Cookie>()
+        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) = synchronized(store) {
+            cookies.forEach { new -> store.removeAll { old -> old.name == new.name && old.domain == new.domain } }
+            store.addAll(cookies)
+            Unit
+        }
+        override fun loadForRequest(url: HttpUrl): List<Cookie> = synchronized(store) { store.toList() }
+    }
 
     val client: OkHttpClient = OkHttpClient.Builder()
-        .apply {
-            val u = prefs.username
-            val p = prefs.password
-            if (u.isNotEmpty()) {
-                addInterceptor { chain ->
-                    chain.proceed(
-                        chain.request().newBuilder()
-                            .header("Authorization", Credentials.basic(u, p))
-                            .build(),
-                    )
-                }
-            }
-        }
+        .cookieJar(cookieJar)
         .build()
 
-    internal val api: SuwayomiApi by lazy { SuwayomiApi(client, baseUrl, apiUrl) }
+    internal val api: SuwayomiApi by lazy { SuwayomiApi(client, this) }
+
+    suspend fun login() = withIOContext {
+        api.login(prefs.username, prefs.password)
+    }
 
     override suspend fun getMangaDetails(manga: SManga): SManga {
         val mangaId = manga.url.toIntOrNull() ?: return manga

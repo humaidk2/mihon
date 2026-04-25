@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -17,10 +18,12 @@ import uy.kohesive.injekt.injectLazy
 
 class SuwayomiApi(
     private val client: OkHttpClient,
-    val baseUrl: String,
-    private val apiUrl: String,
+    private val source: SuwayomiSource,
 ) {
     private val json: Json by injectLazy()
+
+    val baseUrl: String get() = source.baseUrl
+    private val apiUrl: String get() = source.apiUrl
 
     suspend fun getLibrary(): List<ServerManga> = withIOContext {
         val q = "{ mangas(condition: { inLibrary: true }) { nodes { id title thumbnailUrl author artist description status } } }"
@@ -35,6 +38,20 @@ class SuwayomiApi(
     suspend fun getChapters(mangaId: Int): List<ServerChapter> = withIOContext {
         val q = "{ chapters(condition: { mangaId: $mangaId }) { nodes { id name chapterNumber sourceOrder } } }"
         with(json) { graphql(q).parseAs<ChaptersResponse>() }.data.chapters.nodes
+    }
+
+    suspend fun login(username: String, password: String) = withIOContext {
+        if (username.isEmpty()) return@withIOContext
+        val body = FormBody.Builder()
+            .add("user", username)
+            .add("pass", password)
+            .build()
+        client.newCall(
+            Request.Builder()
+                .url("$baseUrl/login.html")
+                .post(body)
+                .build(),
+        ).execute().close()
     }
 
     private suspend fun graphql(query: String): okhttp3.Response {

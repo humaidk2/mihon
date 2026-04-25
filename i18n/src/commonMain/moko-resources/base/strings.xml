@@ -1060,4 +1060,7 @@
     <string name="donationCampaign.paragraph3">Regardless, Mihon will continue to be maintained by me and the volunteers, and it will stay open source.</string>
     <string name="donationCampaign.contactPlatform">Discord</string>
     <string name="donationCampaign.dismiss">Dismiss</string>
+
+    <string name="pref_category_suwayomi">Suwayomi</string>
+    <string name="pref_suwayomi_summary">Remote manga server</string>
 </resources>

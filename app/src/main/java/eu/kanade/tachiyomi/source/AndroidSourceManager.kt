@@ -18,6 +18,8 @@ import kotlinx.coroutines.runBlocking
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.domain.source.repository.StubSourceRepository
 import tachiyomi.domain.source.service.SourceManager
+import mihon.feature.suwayomi.SuwayomiPreferences
+import mihon.feature.suwayomi.SuwayomiSource
 import tachiyomi.source.local.LocalSource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
@@ -34,6 +36,7 @@ class AndroidSourceManager(
     override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
     private val downloadManager: DownloadManager by injectLazy()
+    private val suwayomiPreferences: SuwayomiPreferences by injectLazy()
 
     private val scope = CoroutineScope(Job() + Dispatchers.IO)
 
@@ -51,6 +54,7 @@ class AndroidSourceManager(
                 .collectLatest { extensions ->
                     val mutableMap = ConcurrentHashMap<Long, Source>(
                         mapOf(
+                            SuwayomiSource.ID to SuwayomiSource(suwayomiPreferences),
                             LocalSource.ID to LocalSource(
                                 context,
                                 Injekt.get(),

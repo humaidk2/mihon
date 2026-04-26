@@ -83,6 +83,28 @@ class SuwayomiApi(
         it.name = c.name
         it.chapter_number = c.chapterNumber.toFloat()
     }
+
+    suspend fun getExtensions(): List<ServerExtension> = withIOContext {
+        val q = "{ extensions { nodes { pkgName name lang versionName isInstalled hasUpdate isObsolete isNsfw iconUrl } } }"
+        with(json) { graphql(q).parseAs<ExtListResponse>() }.data.extensions.nodes
+    }
+
+    suspend fun refreshExtensions(): List<ServerExtension> = withIOContext {
+        val q = "mutation { fetchExtensions(input: {}) { extensions { pkgName name lang versionName isInstalled hasUpdate isObsolete isNsfw iconUrl } } }"
+        with(json) { graphql(q).parseAs<FetchExtResponse>() }.data.fetchExtensions.extensions
+    }
+
+    suspend fun installExtension(pkgName: String) = mutateExtension(pkgName, "install: true")
+    suspend fun uninstallExtension(pkgName: String) = mutateExtension(pkgName, "uninstall: true")
+    suspend fun updateExtension(pkgName: String) = mutateExtension(pkgName, "update: true")
+
+    private suspend fun mutateExtension(pkgName: String, patch: String): ServerExtension? = withIOContext {
+        // pkgName is always a Java package name (e.g. eu.kanade.tachiyomi.extension.en.mangadex); safe to interpolate
+        val q = """mutation { updateExtension(input: { id: "$pkgName", patch: { $patch } }) { extension { pkgName name lang versionName isInstalled hasUpdate isObsolete isNsfw iconUrl } } }"""
+        with(json) { graphql(q).parseAs<UpdateExtResponse>() }.data.updateExtension.extension
+    }
+
+    fun extensionIconUrl(ext: ServerExtension): String = "$baseUrl${ext.iconUrl}"
 }
 
 @Serializable
@@ -114,3 +136,28 @@ data class ServerChapter(
 @Serializable private data class ChaptersResponse(val data: ChaptersData)
 @Serializable private data class ChaptersData(val chapters: ChapterNodes)
 @Serializable private data class ChapterNodes(val nodes: List<ServerChapter>)
+
+@Serializable
+data class ServerExtension(
+    val pkgName: String,
+    val name: String,
+    val lang: String,
+    val versionName: String,
+    val isInstalled: Boolean,
+    val hasUpdate: Boolean,
+    val isObsolete: Boolean,
+    val isNsfw: Boolean,
+    val iconUrl: String,
+)
+
+@Serializable private data class ExtListResponse(val data: ExtListData)
+@Serializable private data class ExtListData(val extensions: ExtNodes)
+@Serializable private data class ExtNodes(val nodes: List<ServerExtension>)
+
+@Serializable private data class FetchExtResponse(val data: FetchExtData)
+@Serializable private data class FetchExtData(val fetchExtensions: FetchExtPayload)
+@Serializable private data class FetchExtPayload(val extensions: List<ServerExtension>)
+
+@Serializable private data class UpdateExtResponse(val data: UpdateExtData)
+@Serializable private data class UpdateExtData(val updateExtension: UpdateExtPayload)
+@Serializable private data class UpdateExtPayload(val extension: ServerExtension?)

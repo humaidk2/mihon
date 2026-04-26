@@ -26,19 +26,25 @@ import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import kotlinx.coroutines.launch
 import mihon.feature.suwayomi.extensions.SuwayomiExtensionsScreen
 import mihon.feature.suwayomi.extensions.SuwayomiExtensionsScreenModel
+import mihon.feature.suwayomi.sources.SuwayomiBrowseScreen
+import mihon.feature.suwayomi.sources.SuwayomiSourcesScreen
+import mihon.feature.suwayomi.sources.SuwayomiSourcesScreenModel
 import tachiyomi.i18n.MR
 
 @Composable
 fun Screen.suwayomiTab(): TabContent {
     val navigator = LocalNavigator.currentOrThrow
     val scope = rememberCoroutineScope()
-    val pagerState = rememberPagerState(pageCount = { 2 })
+    val pagerState = rememberPagerState(pageCount = { 3 })
 
     val libraryModel = rememberScreenModel { SuwayomiLibraryScreenModel() }
     val libraryState by libraryModel.state.collectAsState()
 
     val extensionsModel = rememberScreenModel { SuwayomiExtensionsScreenModel() }
     val extensionsState by extensionsModel.state.collectAsState()
+
+    val sourcesModel = rememberScreenModel { SuwayomiSourcesScreenModel() }
+    val sourcesState by sourcesModel.state.collectAsState()
 
     return TabContent(
         titleRes = MR.strings.pref_category_suwayomi,
@@ -62,6 +68,11 @@ fun Screen.suwayomiTab(): TabContent {
                         selected = pagerState.currentPage == 1,
                         onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
                         text = { Text("Extensions") },
+                    )
+                    Tab(
+                        selected = pagerState.currentPage == 2,
+                        onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
+                        text = { Text("Sources") },
                     )
                 }
 
@@ -88,6 +99,20 @@ fun Screen.suwayomiTab(): TabContent {
                             onUninstall = extensionsModel::uninstall,
                             onUpdate = extensionsModel::update,
                             onRefresh = extensionsModel::refresh,
+                            contentPadding = innerPadding,
+                        )
+                        2 -> SuwayomiSourcesScreen(
+                            state = sourcesState,
+                            onSourceClick = { source ->
+                                navigator.push(
+                                    SuwayomiBrowseScreen(
+                                        sourceId = source.id,
+                                        sourceName = source.displayName,
+                                        supportsLatest = source.supportsLatest,
+                                    ),
+                                )
+                            },
+                            onRefresh = sourcesModel::refresh,
                             contentPadding = innerPadding,
                         )
                         else -> Unit
